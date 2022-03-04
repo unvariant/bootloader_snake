@@ -1,163 +1,119 @@
-	org 0x7c00
+; really dont want to write code with a table
+; next to me with the length of all the instructions...
+; will try avoid doing that for as long as I can
 
-        mov ah, 00h
-        mov al, 1
-        int 10h
+    [BITS 16]
+    org 0x7c00
 
-        mov ah, 05h
-        mov al, 1
-        int 10h
+setup:
+    mov ax, 0x0001       ; think moving one value into 16 bit reg is less bytes then two moves into 8 bit registers
+    int 10h
 
-        mov ah, 01h
-        mov cx, 2000h
-        int 10h
+    ; mov ah, 01h        ; turns off cursor blinking
+    ; mov cx, 0x2000     ; uncomment this code if there is still space
+    ; int 10h
 
-        call rand_apple
+draw_board:
+    mov ax, 0x1301
+    mov bx, 0x000f
+    mov cx, 18
+    mov dx, 0
+    mov es, dx
+    mov bp, border1
+    int 10h
 
-draw	mov ah, 13h
-	mov al, 1
-	mov bh, 1
-	mov bl, 0000_1111b
-	mov cx, 16
-	mov dx, 0
-	mov bp, border1
-	push cs
-        pop es
-	int 10h
+    mov di, 16
+    add bp, 18
+.loop:
+    inc dh
+    int 10h
+    dec di
+    jnz .loop
 
-	mov bp, border2
-	mov si, 14
-border  inc dh
-	int 10h
-	dec si
-	jne border
+    inc dh
+    sub bp, 18
+    int 10h
 
-	inc dh
-	mov bp, border1
-	int 10h
+    add bp, 36
+    mov di, bp
+    inc di
+horizontal:
+    mov dh, byte[di]
+    mov ch, byte[di + 1]
+    mov dl, dh
+    mov cl, ch
+    and dh, 0x0f
+    and ch, 0x0f
+    shr dl, 4
+    shr cl, 4
+    mov ah, 0x02
+    int 10h
+    mov ah, 0x0a
+    cmp dh, ch
+    jnz vertical
 
-	mov ah, 13h
-	mov al, 1
-	mov cx, 1
-	mov di, snake
-	mov bp, body
-render	mov dh, byte[di]
-	mov dl, dh
-	and dh, 0fh
-	shr dl, 4
-	int 10h
+    cmp dl, cl
+    jl .next
 
-	inc di
-	cmp byte[di], 0xff
-	jne render
+    xchg dl, cl
+.next:
+    sub cl, dl
+    mov ch, 0
+    int 10h
 
-        mov bp, apple_sym
-        mov dh, byte[apple]
-        mov dl, dh
-        and dh, 0fh
-        shr dl, 4
-        int 10h
+    jmp next
+vertical:
+    cmp dh, ch
+    jl .next
 
-input   mov ah, 1
-	int 16h
-	je input
+    xchg dh, ch
+.next:
+    movzx si, ch
+.loop:
+    mov ah, 0x0a
+    mov cx, 1
+    int 10h
+    inc dh
+    mov ah, 0x02
+    int 10h
+    mov cx, si
+    cmp dh, cl
+    jnz .loop
 
-	mov ah, 0
-	int 16h
+next:
+    inc di
+    cmp word[di + 1], 0
+    jnz horizontal
 
-	mov di, dir
-	cmp al, "h"
-	je left
-	cmp al, "j"
-	je down
-	cmp al, "k"
-	je up
-	cmp al, "l"
-	je right
-	jmp draw
+    jmp $
+check_input:
+    mov ah, 0x01
+    int 13h
+    ; je ; figure out something
 
-left    cmp word[di], 0100h
-	je draw
-	mov word[di], 0f00h
-	jmp next
-down	cmp word[di], 0001h
-	je draw
-	mov word[di], 000fh
-	jmp next
-up	cmp word[di], 000fh
-	je draw
-	mov word[di], 0001h
-	jmp next
-right	cmp word[di], 0f00h
-	je draw
-	mov word[di], 0100h
 
-next    mov di, snake - 1
-findend	inc di
-	cmp byte[di + 1], 0xff
-	jne findend
 
-	mov bp, word[di]
-	mov word[di + 1], bp
-	dec di
 
-	mov al, byte[snake]
-        cmp al, byte[apple]
-	je grow
+border1:  db "@@@@@@@@@@@@@@@@@@"
+border2:  db "@                @"
+body_sym: db "o"
+snake:    db 0x00, 0x05
+          times 160 db 0            ; max amount of points that could make up the snake is 160 + 2 for the terminator
 
-	mov byte[di + 1], 0xff
-        jmp check
-
-grow	call rand_apple
-check   cmp di, snake - 1
-	je head
-
-shift   mov bp, word[di]
-	mov word[di + 1], bp
-	dec di
-	cmp di, snake - 1
-	jne shift
-
-head	mov dx, word[dir]
-	mov al, byte[snake + 1]
-	add al, dl
-	and al, 0x0f
-	mov cl, al
-
-	shr dx, 8
-	mov al, byte[snake + 1]
-	shr al, 4
-	add al, dl
-	and al, 0x0f
-	shl al, 4
-	or  cl, al
-	mov byte[snake], cl
-	jmp draw
-
-; utility functions for code used in more than one place
-
-rand_apple:
-    mov al, byte[apple]
-    mov ah, al
-    and al, 0b0000_0001
-    and ah, 0b0000_0010
-    shr ah, 1
-    xor ah, al
-    shl ah, 7
-    shr byte[apple], 1
-    or byte[apple], ah
+; dh contains byte to search for
+; assumes ptr to 0 word (2 bytes) terminated array
+contains:
+    mov al, 1            ; set al to true
+.loop:
+    cmp byte[bx], dh     ; compare dh to byte at addr bx
+    jz .end              ; return if equal
+    inc bx               ; increment ptr
+    cmp word[bx + 1], 0      ; end at word 0 terminator
+    jnz .loop
+    mov al, 0            ; set al to zero if element was not found
+.end:
     ret
-	
-snake   db 0x77
-	db 0xff
-	times 100 db 0
 
-border1   db "@@@@@@@@@@@@@@@@"
-border2   db "@              @"
-body      db "o"
-dir       dw 000fh
-apple     db 0x77
-apple_sym db "a"
 
-	times 510 - ($ - $$) db 0
-	dw 0xaa55
+    times 510 - ($ - $$) db 0
+    dw 0xaa55                   ; no idea why this is necessary
