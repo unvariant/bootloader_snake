@@ -1,8 +1,18 @@
 	org 0x7c00
 
-	mov ah, 5h
-	mov al, 1
-	int 10h
+        mov ah, 00h
+        mov al, 1
+        int 10h
+
+        mov ah, 05h
+        mov al, 1
+        int 10h
+
+        mov ah, 01h
+        mov cx, 2000h
+        int 10h
+
+        call rand_apple
 
 draw	mov ah, 13h
 	mov al, 1
@@ -12,7 +22,7 @@ draw	mov ah, 13h
 	mov dx, 0
 	mov bp, border1
 	push cs
-	pop es
+        pop es
 	int 10h
 
 	mov bp, border2
@@ -32,7 +42,7 @@ border  inc dh
 	mov di, snake
 	mov bp, body
 render	mov dh, byte[di]
-	mov dl, byte[di]
+	mov dl, dh
 	and dh, 0fh
 	shr dl, 4
 	int 10h
@@ -40,6 +50,13 @@ render	mov dh, byte[di]
 	inc di
 	cmp byte[di], 0xff
 	jne render
+
+        mov bp, apple_sym
+        mov dh, byte[apple]
+        mov dl, dh
+        and dh, 0fh
+        shr dl, 4
+        int 10h
 
 input   mov ah, 1
 	int 16h
@@ -84,12 +101,15 @@ findend	inc di
 	mov word[di + 1], bp
 	dec di
 
-	cmp byte[apple], 0
-	jne grow
+	mov al, byte[snake]
+        cmp al, byte[apple]
+	je grow
 
 	mov byte[di + 1], 0xff
+        jmp check
 
-grow	cmp di, snake - 1
+grow	call rand_apple
+check   cmp di, snake - 1
 	je head
 
 shift   mov bp, word[di]
@@ -113,24 +133,31 @@ head	mov dx, word[dir]
 	or  cl, al
 	mov byte[snake], cl
 	jmp draw
+
+; utility functions for code used in more than one place
+
+rand_apple:
+    mov al, byte[apple]
+    mov ah, al
+    and al, 0b0000_0001
+    and ah, 0b0000_0010
+    shr ah, 1
+    xor ah, al
+    shl ah, 7
+    shr byte[apple], 1
+    or byte[apple], ah
+    ret
 	
 snake   db 0x77
 	db 0xff
-	times 196 db 0
+	times 100 db 0
 
-border1 db "@@@@@@@@@@@@@@@@"
-border2 db "@              @"
-body    db "o"
-dir     dw 000fh
-apple   db 0
+border1   db "@@@@@@@@@@@@@@@@"
+border2   db "@              @"
+body      db "o"
+dir       dw 000fh
+apple     db 0x77
+apple_sym db "a"
+
 	times 510 - ($ - $$) db 0
 	dw 0xaa55
-
-
-; get keyboard status
-mov ah, 1
-int 16h
-
-; read from keyboard buffer
-mov ah, 0
-int 16h
