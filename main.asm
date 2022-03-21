@@ -1,119 +1,117 @@
-; really dont want to write code with a table
-; next to me with the length of all the instructions...
-; will try avoid doing that for as long as I can
-
     [BITS 16]
-    org 0x7c00
+    [ORG 0x7c00]
 
-setup:
-    mov ax, 0x0001       ; think moving one value into 16 bit reg is less bytes then two moves into 8 bit registers
+%macro mul_by_ten 2
+    mov %2, %1
+    shl %1, 2
+    add %1, %2
+    shl %1, 1
+%endmacro
+    
+
+    mov ah, 0x00
+    mov al, 0x13
     int 10h
 
-    ; mov ah, 01h        ; turns off cursor blinking
-    ; mov cx, 0x2000     ; uncomment this code if there is still space
-    ; int 10h
-
-draw_board:
-    mov ax, 0x1301
-    mov bx, 0x000f
-    mov cx, 18
-    mov dx, 0
-    mov es, dx
-    mov bp, border1
-    int 10h
-
-    mov di, 16
-    add bp, 18
-.loop:
-    inc dh
-    int 10h
-    dec di
-    jnz .loop
-
-    inc dh
-    sub bp, 18
-    int 10h
-
-    add bp, 36
-    mov di, bp
-    inc di
-horizontal:
-    mov dh, byte[di]
-    mov ch, byte[di + 1]
-    mov dl, dh
-    mov cl, ch
-    and dh, 0x0f
-    and ch, 0x0f
-    shr dl, 4
-    shr cl, 4
-    mov ah, 0x02
-    int 10h
-    mov ah, 0x0a
-    cmp dh, ch
-    jnz vertical
-
-    cmp dl, cl
-    jl .next
-
-    xchg dl, cl
-.next:
-    sub cl, dl
-    mov ch, 0
-    int 10h
-
-    jmp next
-vertical:
-    cmp dh, ch
-    jl .next
-
-    xchg dh, ch
-.next:
-    movzx si, ch
-.loop:
-    mov ah, 0x0a
-    mov cx, 1
-    int 10h
-    inc dh
-    mov ah, 0x02
-    int 10h
-    mov cx, si
-    cmp dh, cl
-    jnz .loop
-
+    xor di, di
+render:
+    mov word[tmp0], di
+    mov si, di
+    mov bx, di
+    shr bx, 3
+    mov al, byte[board + bx]
+    shl bx, 3
+    sub si, bx
+    shl si, 1
+    cmp si, 0
+    jz next
+shift:
+    shl al, 1
+    dec si
+    jnz shift
 next:
+    shr al, 6
+    mov si, di
+    shr di, 4
+    mov bx, di
+    shl di, 4
+    sub si, di
+    mov di, bx
+    lea esi, [esi * 4 + esi]
+    shl si, 1
+    lea edi, [edi * 4 + edi]
+    shl di, 1
+    call draw_square
+
+    mov di, word[tmp0]
     inc di
-    cmp word[di + 1], 0
-    jnz horizontal
+    cmp di, 256
+    jb render
 
-    jmp $
-check_input:
-    mov ah, 0x01
-    int 13h
-    ; je ; figure out something
+hang:
+    jmp hang
 
-
-
-
-border1:  db "@@@@@@@@@@@@@@@@@@"
-border2:  db "@                @"
-body_sym: db "o"
-snake:    db 0x00, 0x05
-          times 160 db 0            ; max amount of points that could make up the snake is 160 + 2 for the terminator
-
-; dh contains byte to search for
-; assumes ptr to 0 word (2 bytes) terminated array
-contains:
-    mov al, 1            ; set al to true
+draw_square:
+    mov dx, di
+    mov cx, si
+    add di, 10
+    add si, 10
+.outer:
+    xor cx, cx
 .loop:
-    cmp byte[bx], dh     ; compare dh to byte at addr bx
-    jz .end              ; return if equal
-    inc bx               ; increment ptr
-    cmp word[bx + 1], 0      ; end at word 0 terminator
-    jnz .loop
-    mov al, 0            ; set al to zero if element was not found
-.end:
+    mov ah, 0x0c
+    mov bh, 0
+    int 0x10
+    inc cx
+    cmp cx, si
+    jb .loop
+
+    inc dx
+    cmp dx, di
+    jb .outer
     ret
 
+tmp0: dw 0
+tmp1: dw 0
+tmp2: dw 0
+
+; 2 = green, 4 = red, 0 = black
+
+rows:  equ 16
+cols:  equ 16
+board: db 0b11111111, 0b11111111, 0b11111111, 0b11111111, 0b11111100, 0b00000000
+       db 0b00000000, 0b00000000, 0b00000011, 0b11000000, 0b00000000, 0b00000000
+       db 0b00000000, 0b00111100, 0b00000000, 0b00000000, 0b00000000, 0b00000011
+       db 0b11000000, 0b00000000, 0b00000000, 0b00000000, 0b00111100, 0b00000000
+       db 0b00000000, 0b00000000, 0b00000011, 0b11000000, 0b00000000, 0b00000000
+       db 0b00000000, 0b00111100, 0b00000000, 0b00000000, 0b00000000, 0b00000011
+       db 0b11000000, 0b00000000, 0b00000000, 0b00000000, 0b00111100, 0b00000000
+       db 0b00000000, 0b00000000, 0b00000011, 0b11000000, 0b00000000, 0b00000000
+       db 0b00000000, 0b00111100, 0b00000000, 0b00000000, 0b00000000, 0b00000011
+       db 0b11000000, 0b00000000, 0b00000000, 0b00000000, 0b00111100, 0b00000000
+       db 0b00000000, 0b00000000, 0b00000011, 0b11000000, 0b00000000, 0b00000000
+       db 0b00000000, 0b00111100, 0b00000000, 0b00000000, 0b00000000, 0b00000011
+       db 0b11000000, 0b00000000, 0b00000000, 0b00000000, 0b00111111, 0b11111111
+       db 0b11111111, 0b11111111, 0b11111111
+
+; 11111111 11111111 11111111 11111111 1111
+; 11000000 00000000 00000000 00000000 0011
+; 11000000 00000000 00000000 00000000 0011
+; 11000000 00000000 00000000 00000000 0011
+; 11000000 00000000 00000000 00000000 0011
+; 11000000 00000000 00000000 00000000 0011
+; 11000000 00000000 00000000 00000000 0011
+; 11000000 00000000 00000000 00000000 0011
+; 11000000 00000000 00000000 00000000 0011
+; 11000000 00000000 00000000 00000000 0011
+; 11000000 00000000 00000000 00000000 0011
+; 11000000 00000000 00000000 00000000 0011
+; 11000000 00000000 00000000 00000000 0011
+; 11000000 00000000 00000000 00000000 0011
+; 11000000 00000000 00000000 00000000 0011
+; 11000000 00000000 00000000 00000000 0011
+; 11000000 00000000 00000000 00000000 0011
+; 11111111 11111111 11111111 11111111 1111
 
     times 510 - ($ - $$) db 0
-    dw 0xaa55                   ; no idea why this is necessary
+    dw 0xaa55
