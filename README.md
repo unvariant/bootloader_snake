@@ -6,3 +6,9 @@ To represent the snake an array of (x, y) coordinates are used, and to save spac
 
 Issues:<br>
 My program quickly ran out of memory as storing the coordinates for the snake took around 200 of the 512 available bytes. Still need to implement collision detection with the borders and when the snake hits itself. Found out that the rdrand and rdseed instructions are not availible, need to figure out some other method to randomly generate positions for the apple. One possible optimiztion to reduce the amount of space the snake takes up would be to only store the start and end points of the lines that make up the snake. Updating the snake becomes somewhat more complicated because decreasing the snakes size cannot be achieved by deleting the last coordinate.
+
+More Issues:<br>
+Ran out of memory AGAIN, this is getting annoying.
+
+Solution:<br>
+Instead of storing the snakes coordinates just use a bitmap (why didn't I think of this before). Each element of the bitmap is two bits which stores the color of the corresponding area of the screen.
