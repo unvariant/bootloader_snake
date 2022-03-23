@@ -16,7 +16,7 @@ int main(int argc, char* argv[]) {
     }
     int rows = atoi(argv[1]);
     int cols = atoi(argv[2]);
-    int bits = 2;
+    int bits = 4;
 
     int rowlen = cols * bits;
     int total = rowlen * rows;
@@ -24,26 +24,26 @@ int main(int argc, char* argv[]) {
 
     char * board = (char *) malloc(bytes);
 
-    memset(board, 0xff, rowlen / 8);
-    *(board + rowlen / 8) = 0xff << (8 - rowlen % 8);
+    memset(board, 0b10101010, rowlen / 8);
+    *(board + rowlen / 8) = 0b10101010 << (8 - rowlen % 8);
 
     int b = rowlen;
 
     do {
-        *(board + b / 8) = 0b00000011 << (6 - b % 8);
-        *(board + (b + rowlen - bits) / 8) |= 0b00000011 << (6 - (b + rowlen - bits) % 8);
+        *(board + b / 8) = 0b00000010 << (6 - b % 8);
+        *(board + (b + rowlen - bits) / 8) |= 0b00000010 << (6 - (b + rowlen - bits) % 8);
         b += rowlen;
     } while(b < total - rowlen);
 
     if(b % 8 != 0) {
-        *(board + b / 8) |= 0xff >> b % 8;
+        *(board + b / 8) |= 0b10101010 >> b % 8;
         b += 8 - b % 8;
     }
 
-    memset(board + b / 8, 0xff, (b + rowlen) / 8);
+    memset(board + b / 8, 0b10101010, (b + rowlen) / 8);
 
     if((b + rowlen) % 8 != 0) {
-        *(board + (b + rowlen) / 8) |= 0xff << (8 - (b + rowlen) % 8);
+        *(board + (b + rowlen) / 8) |= 0b10101010 << (8 - (b + rowlen) % 8);
     }
 
     char * buf = (char *) malloc(9);
