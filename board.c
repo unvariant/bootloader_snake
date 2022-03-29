@@ -16,7 +16,7 @@ int main(int argc, char* argv[]) {
     }
     int rows = atoi(argv[1]);
     int cols = atoi(argv[2]);
-    int bits = 4;
+    int bits = 2;
 
     int rowlen = cols * bits;
     int total = rowlen * rows;
